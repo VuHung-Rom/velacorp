@@ -1,7 +1,7 @@
 package com.velacorp.order_management.service;
 
 import com.velacorp.order_management.common.CommonException;
-import com.velacorp.order_management.entity.Order;
+import com.velacorp.order_management.entity.Orders;
 import com.velacorp.order_management.entity.dto.BaseResponse;
 import com.velacorp.order_management.repository.OrderRepository;
 import java.util.List;
@@ -15,10 +15,10 @@ public class OrderServiceImpl implements OrderService{
   private OrderRepository orderRepository;
 
   @Override
-  public List<Order> getAllOrders() throws Exception {
+  public List<Orders> getAllOrders() throws Exception {
     BaseResponse response = new BaseResponse();
     try {
-      List<Order> orders = orderRepository.findAll();
+      List<Orders> orders = orderRepository.findAll();
       return orders;
     } catch (Exception exception) {
       response.setResponseCode("ERR_GET_ALL_ORDER_FAIL");

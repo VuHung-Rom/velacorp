@@ -1,11 +1,11 @@
 package com.velacorp.order_management.controller;
 
-import com.velacorp.order_management.entity.Order;
+import com.velacorp.order_management.entity.Orders;
 import com.velacorp.order_management.entity.Product;
 import com.velacorp.order_management.entity.dto.BaseResponse;
 import com.velacorp.order_management.service.OrderService;
-import com.velacorp.order_management.service.ProductService;
 import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,11 +23,11 @@ public class OrderController {
 
   private static final Logger logger = LoggerFactory.getLogger(OrderController.class);
 
-  @GetMapping
+  @GetMapping("/all")
   public ResponseEntity<BaseResponse> getAllOrders() {
     BaseResponse response = new BaseResponse();
     try {
-      List<Order> orders = orderService.getAllOrders();
+      List<Orders> orders = orderService.getAllOrders();
       response.setResponseCode("0");
       response.setMessage("Success");
       response.setData(orders);
@@ -38,4 +38,5 @@ public class OrderController {
           .body(response);
     }
   }
+
 }

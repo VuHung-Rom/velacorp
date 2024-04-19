@@ -12,16 +12,16 @@ import lombok.Setter;
 @Setter
 @Getter
 @Entity
-@Table(name = "ORDERDETAIL")
+@Table(name = "ORDER_DETAIL")
 public class OrderDetail {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
   @ManyToOne
-  @JoinColumn(name = "ORDERID", nullable = false)
-  private Order order;
+  @JoinColumn(name = "ORDER_ID", nullable = false)
+  private Orders order;
   @ManyToOne
-  @JoinColumn(name = "PRODUCTID", nullable = false)
+  @JoinColumn(name = "PRODUCT_ID", nullable = false)
   private Product product;
   private Long quantity;
   private Double unitPrice;
