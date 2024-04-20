@@ -1,10 +1,11 @@
-package com.velacorp.order_management.service;
+package com.velacorp.order_management.service.impl;
 
 import com.velacorp.order_management.common.CommonException;
 import com.velacorp.order_management.entity.Product;
 import com.velacorp.order_management.entity.dto.BaseResponse;
 import com.velacorp.order_management.entity.dto.ProductDTO;
 import com.velacorp.order_management.repository.ProductRepository;
+import com.velacorp.order_management.service.ProductService;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.BeanUtils;
@@ -32,11 +33,18 @@ public class ProductServiceImpl implements ProductService {
 
   @Override
   public List<Product> searchProducts(String keyword) {
-    if (keyword == null || keyword.isBlank()) {
-      return productRepository.findAll();
-    }
+    BaseResponse response = new BaseResponse();
+    try {
+      if (keyword == null || keyword.isBlank()) {
+        return productRepository.findAll();
+      }
 
-    return productRepository.findByProductNameContainingOrDescriptionContaining(keyword, keyword);
+      return productRepository.findByProductNameContainingOrDescriptionContaining(keyword, keyword);
+    } catch (Exception exception) {
+      response.setResponseCode("ERR_SEARCH_PRODUCTS_FAIL");
+      response.setMessage("Cannot retrieve products");
+      throw new CommonException(exception, "ERR_SEARCH_PRODUCTS_FAIL", "Cannot retrieve products");
+    }
   }
 
 
@@ -65,6 +73,11 @@ public class ProductServiceImpl implements ProductService {
     return productRepository.save(product);
   }
 
+  /**
+   *
+   * @param requestProduct
+   * @throws CommonException
+   */
   private void validateRequiredFields(ProductDTO requestProduct) throws CommonException {
     if (requestProduct.getProductName() == null || requestProduct.getProductName().isEmpty()) {
       throw new CommonException("2", "Product name is required.");
@@ -83,6 +96,12 @@ public class ProductServiceImpl implements ProductService {
     }
   }
 
+  /**
+   *
+   * @param productId
+   * @param requestProduct
+   * @return
+   */
   @Override
   public Product updateProduct(Long productId, ProductDTO requestProduct) {
     Optional<Product> optionalProduct = productRepository.findById(productId);
