@@ -10,6 +10,6 @@ public interface ProductService {
   Optional<Product> getProductById(Long id) throws Exception;
   Product createProduct(ProductDTO requestProduct) throws Exception;
   Product updateProduct(Long id, ProductDTO requestProduct) throws Exception;
-  void deleteProduct(Long id) throws Exception;
+  void deleteProduct(Long productId) throws Exception;
   List<Product> searchProducts(String keyword) throws Exception;
 }

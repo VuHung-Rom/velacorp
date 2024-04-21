@@ -138,25 +138,18 @@ public class ProductController {
   /**
    *USP04: Như một quản trị viên, tôi muốn có khả năng xóa một sản phẩm dựa
    * trên ID để loại bỏ các sản phẩm không còn cần thiết.
-   * @param id
+   * @param productId
    * @return
    */
-  @DeleteMapping("/{id}")
-  public ResponseEntity<BaseResponse> deleteProduct(@PathVariable Long id) {
-    BaseResponse response = new BaseResponse();
+  @DeleteMapping("/{productId}")
+  public ResponseEntity<String> deleteProduct(@PathVariable Long productId) {
     try {
-      productService.deleteProduct(id);
-      response.setResponseCode("0");
-      response.setMessage("Product deleted successfully");
-      return ResponseEntity.status(HttpStatus.OK).body(response);
+      productService.deleteProduct(productId);
+      return new ResponseEntity<>("Product deleted successfully", HttpStatus.OK);
     } catch (CommonException e) {
-      response.setResponseCode("404");
-      response.setMessage("not found");
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+      return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
     } catch (Exception e) {
-      response.setResponseCode("500");
-      response.setMessage("Internal Server Error");
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+      throw new RuntimeException(e);
     }
   }
 

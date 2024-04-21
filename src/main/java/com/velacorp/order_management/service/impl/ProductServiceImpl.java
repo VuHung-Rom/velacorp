@@ -64,12 +64,9 @@ public class ProductServiceImpl implements ProductService {
   @Override
   public Product createProduct(ProductDTO requestProduct) throws Exception {
     validateRequiredFields(requestProduct);
-
     Product product = new Product();
-    product.setProductName(requestProduct.getProductName());
-    product.setDescription(requestProduct.getDescription());
-    product.setPrice(requestProduct.getPrice());
-    product.setStockQuantity(requestProduct.getStockQuantity());
+    BeanUtils.copyProperties(requestProduct, product);
+    product.setStatus("1");
     return productRepository.save(product);
   }
 
@@ -116,10 +113,13 @@ public class ProductServiceImpl implements ProductService {
 
   @Override
   public void deleteProduct(Long productId) {
-    if (productRepository.existsById(productId)) {
-      productRepository.deleteById(productId);
+    Optional<Product> productOptional = productRepository.findById(productId);
+    if (productOptional.isPresent()) {
+      Product product = productOptional.get();
+      product.setStatus("-1");
+      productRepository.save(product);
     } else {
-      throw new CommonException("Product with id ", " not found");
+      throw new CommonException("Product with id " , " not found");
     }
   }
 }
