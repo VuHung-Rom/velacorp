@@ -8,7 +8,16 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Orders,Long> {
-  @Query("SELECT o FROM Orders o WHERE (:id IS NULL OR o.id = :id) AND LOWER(o.customerName) LIKE LOWER(CONCAT('%', COALESCE(:keyword, ''), '%'))")
-  List<Orders> findByOrderIdOrCustomerNameContainingIgnoreCase(Long id, String keyword);
+  @Query(value ="SELECT o.* FROM orders o WHERE (:id IS NULL OR o.id = :id) "
+      + "AND LOWER(o.customer_name) LIKE LOWER(CONCAT('%', COALESCE(:keyword, ''), '%')) "
+      + "AND o.status = '1' "
+      + "ORDER BY order_date desc LIMIT :pageSize OFFSET :offset "
+      ,nativeQuery = true)
+  List<Orders> findByOrderIdOrCustomerNameContainingIgnoreCase(Long id, String keyword, Integer pageSize, Integer offset);
+  @Query(value ="SELECT COUNT(*) FROM orders o WHERE (:id IS NULL OR o.id = :id) "
+      + "AND LOWER(o.customer_name) LIKE LOWER(CONCAT('%', COALESCE(:keyword, ''), '%')) "
+      + "AND o.status = '1' "
+      ,nativeQuery = true)
+  Long findByOrderIdOrCustomerNameContainingIgnoreCaseCount(Long id, String keyword);
 
 }

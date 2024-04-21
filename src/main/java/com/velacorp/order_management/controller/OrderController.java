@@ -5,6 +5,7 @@ import com.velacorp.order_management.entity.OrderDetail;
 import com.velacorp.order_management.entity.Orders;
 import com.velacorp.order_management.entity.dto.BaseResponse;
 import com.velacorp.order_management.entity.dto.OrderDTO;
+import com.velacorp.order_management.entity.dto.OrdersResponse;
 import com.velacorp.order_management.service.OrderService;
 import java.util.List;
 import java.util.Optional;
@@ -62,7 +63,15 @@ public class OrderController {
    */
   @GetMapping("/search")
   public ResponseEntity<BaseResponse> searchOrders(@RequestParam(required = false) Long id,
-      @RequestParam(required = false) String keyword) {
+      @RequestParam(required = false) String keyword,
+      @RequestParam(required = false) Integer pageSize,
+      @RequestParam(required = false) Integer pageNumber) {
+    if (pageSize == null ) {
+      pageSize = 20;
+    }
+    if (pageNumber == null ) {
+      pageNumber = 0;
+    }
     BaseResponse response = new BaseResponse();
     try {
       if (id == null && keyword == null) {
@@ -70,11 +79,10 @@ public class OrderController {
         response.setMessage("At least one of id or keyword must be provided.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
       }
-      List<Orders> orders;
-      orders = orderService.searchOrders(id, keyword);
+      OrdersResponse ordersResponse = orderService.searchOrders(id, keyword, pageSize, pageNumber);
       response.setResponseCode("0");
       response.setMessage("Orders retrieved successfully");
-      response.setData(orders);
+      response.setData(ordersResponse);
       return ResponseEntity.status(HttpStatus.OK).body(response);
     } catch (Exception e) {
       response.setResponseCode("500");
@@ -82,6 +90,7 @@ public class OrderController {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
   }
+
 
   /**
    * api UOD01: Như một quản trị viên, tôi muốn có khả năng tạo đơn hàng mới với thông tin cá nhân

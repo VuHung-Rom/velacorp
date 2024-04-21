@@ -20,9 +20,11 @@ public class OrderDetail {
   @ManyToOne
   @JoinColumn(name = "ORDER_ID", nullable = false)
   private Orders order;
+
   @ManyToOne
   @JoinColumn(name = "PRODUCT_ID", nullable = false)
   private Product product;
   private Long quantity;
   private Double unitPrice;
+  private String status;
 }
