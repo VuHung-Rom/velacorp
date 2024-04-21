@@ -1,6 +1,8 @@
 package com.velacorp.order_management.service.impl;
 
 import com.velacorp.order_management.common.CommonException;
+import com.velacorp.order_management.common.Utils;
+import com.velacorp.order_management.common.Utils.Constants;
 import com.velacorp.order_management.entity.OrderDetail;
 import com.velacorp.order_management.entity.Orders;
 import com.velacorp.order_management.entity.Product;
@@ -12,11 +14,14 @@ import com.velacorp.order_management.repository.OrderDetailRepository;
 import com.velacorp.order_management.repository.OrderRepository;
 import com.velacorp.order_management.repository.ProductRepository;
 import com.velacorp.order_management.service.OrderService;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -28,53 +33,63 @@ public class OrderServiceImpl implements OrderService {
   @Autowired
   private ProductRepository productRepository;
   @Override
-  public List<Orders> getAllOrders() throws Exception {
+  public List<Orders> getAllOrders() {
     BaseResponse response = new BaseResponse();
-    try {
       List<Orders> orders = orderRepository.findAll();
       return orders;
-    } catch (Exception exception) {
-      response.setResponseCode("ERR_GET_ALL_ORDER_FAIL");
-      response.setMessage("Cannot retrieve order");
-      throw new CommonException(exception, "ERR_GET_ALL_ORDER_FAIL", "Cannot retrieve order");
-    }
   }
 
   @Override
-  public OrdersResponse searchOrders(Long id, String keyword, int pageSize, int pageNumber) throws Exception {
-    try {
-      int offset = pageNumber  * pageSize;
-      List<Orders> orders = orderRepository.findByOrderIdOrCustomerNameContainingIgnoreCase(id, keyword, pageSize, offset);
-      Long totalCount = orderRepository.findByOrderIdOrCustomerNameContainingIgnoreCaseCount(id, keyword);
-      return new OrdersResponse(orders, totalCount);
-    } catch (Exception exception) {
-      throw new CommonException(exception, "ERR_SEARCH_ORDER_FAIL", "Cannot retrieve order");
-    }
+  public OrdersResponse searchOrders(Long id, String keyword, int pageSize, int pageNumber)
+      throws Exception {
+    int offset = pageNumber * pageSize;
+    List<Orders> orders = orderRepository.findByOrderIdOrCustomerNameContainingIgnoreCase(id,
+        keyword, pageSize, offset);
+    Long totalCount = orderRepository.findByOrderIdOrCustomerNameContainingIgnoreCaseCount(id,
+        keyword);
+    return new OrdersResponse(orders, totalCount);
   }
 
 
   @Override
+  @Transactional
   public Orders createOrders(OrderDTO orderDTO) {
     validateOrderDTO(orderDTO);
     String lstProductIdError = "";
+    String lstProductIdNotEnough = "";
     Double totalPrice = 0D;
     for (OrderProductsDTO orderProductsDTO : orderDTO.getLstOrderProduct()) {
       Optional<Product> productOptional = productRepository.findById(
           orderProductsDTO.getProductId());
-      if (!productOptional.isPresent()) {
+      if (!productOptional.isPresent() || !Constants.STATUS_ACTIVE.equals(
+          productOptional.get().getStatus())) {
         lstProductIdError = ";" + orderProductsDTO.getProductId();
         continue;
       }
-      totalPrice += productOptional.get().getPrice() * orderProductsDTO.getQuantity();
+      Product product = productOptional.get();
+      //Process quantity of product
+      if (product.getStockQuantity() < orderProductsDTO.getQuantity()) {
+        lstProductIdNotEnough = ";" + orderProductsDTO.getProductId();
+        continue;
+      } else {
+        product.setStockQuantity(product.getStockQuantity() - orderProductsDTO.getQuantity());
+      }
+      productRepository.save(product);
+      totalPrice += product.getPrice() * orderProductsDTO.getQuantity();
     }
     if (!lstProductIdError.isEmpty()) {
       throw new CommonException("PRODUCT_NOT_FOUND",
-          "ProductId not found in database: " + lstProductIdError);
+          "ProductId not found in database : " + lstProductIdError, HttpStatus.BAD_REQUEST);
+    }
+    if (!lstProductIdNotEnough.isEmpty()) {
+      throw new CommonException("PRODUCT_QUANTITY_NOT_ENOUGH",
+          "ProductId quantity are not enough : " + lstProductIdNotEnough, HttpStatus.BAD_REQUEST);
     }
     Orders order = new Orders();
     BeanUtils.copyProperties(orderDTO, order);
     order.setTotalAmount(totalPrice);
-    order.setStatus("1");
+    order.setOrderDate(new Date());
+    order.setStatus(Constants.STATUS_ACTIVE);
     orderRepository.save(order);
     for (OrderProductsDTO orderProductsDTO : orderDTO.getLstOrderProduct()) {
       OrderDetail orderDetail = new OrderDetail();
@@ -84,7 +99,7 @@ public class OrderServiceImpl implements OrderService {
       orderDetail.setProduct(productOptional.get());
       orderDetail.setQuantity(orderProductsDTO.getQuantity());
       orderDetail.setOrder(order);
-      orderDetail.setStatus("1");
+      orderDetail.setStatus(Constants.STATUS_ACTIVE);
     }
     return order;
   }
@@ -97,21 +112,24 @@ public class OrderServiceImpl implements OrderService {
   private void validateOrderDTO(OrderDTO orderDTO) {
 
     if (isNullOrEmpty(orderDTO.getCustomerName())) {
-      throw new CommonException("VALIDATION_ERROR", "Customer name is required");
+      throw new CommonException("VALIDATION_ERROR", "Customer name is required",
+          HttpStatus.BAD_REQUEST);
     }
 
     if (isNullOrEmpty(orderDTO.getAddress())) {
-      throw new CommonException("VALIDATION_ERROR", "Address is required");
+      throw new CommonException("VALIDATION_ERROR", "Address is required", HttpStatus.BAD_REQUEST);
     }
 
     if (isNullOrEmpty(orderDTO.getEmail())) {
-      throw new CommonException("VALIDATION_ERROR", "Email is required");
+      throw new CommonException("VALIDATION_ERROR", "Email is required", HttpStatus.BAD_REQUEST);
     }
     if (!isValidPhoneNumber(orderDTO.getPhoneNumber())) {
-      throw new CommonException("2", "Invalid PhoneNumber format");
+      throw new CommonException("VALIDATION_ERROR", "Invalid PhoneNumber format",
+          HttpStatus.BAD_REQUEST);
     }
     if (orderDTO.getLstOrderProduct() == null || orderDTO.getLstOrderProduct().isEmpty()) {
-      throw new CommonException("VALIDATION_ERROR", "list order product is required");
+      throw new CommonException("VALIDATION_ERROR", "list order product is required",
+          HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -120,14 +138,19 @@ public class OrderServiceImpl implements OrderService {
   }
 
   @Override
-  public Orders updateOrder(Long orderId, OrderDTO requestOrder) {
+  @Transactional
+  public Orders updateOrder(Long orderId, OrderDTO requestOrder) throws CommonException {
     validateOrderDTO(requestOrder);
     Optional<Orders> optionalOrder = orderRepository.findById(orderId);
     if (optionalOrder.isPresent()) {
       Orders existingOrder = optionalOrder.get();
-      List<OrderDetail> existingOrderDetails = orderDetailRepository.findByOrder(existingOrder);
+      List<OrderDetail> existingOrderDetails = orderDetailRepository.findByOrderAndStatusEquals(
+          existingOrder, "1");
 
       Double totalPrice = 0D;
+      String lstProductIdError = "";
+      String lstProductIdNotEnough = "";
+
       for (OrderProductsDTO orderProductsDTO : requestOrder.getLstOrderProduct()) {
         Long productId = orderProductsDTO.getProductId();
         Optional<OrderDetail> existingDetailOptional = existingOrderDetails.stream()
@@ -136,43 +159,91 @@ public class OrderServiceImpl implements OrderService {
 
         OrderDetail orderDetail;
         if (existingDetailOptional.isPresent()) {
-          orderDetail = existingDetailOptional.get();
-          orderDetail.setQuantity(orderProductsDTO.getQuantity());
-        } else {
-          orderDetail = new OrderDetail();
           Optional<Product> productOptional = productRepository.findById(productId);
-          if (!productOptional.isPresent()) {
+          if (!productOptional.isPresent() || !Constants.STATUS_ACTIVE.equals(
+              productOptional.get().getStatus())) {
+            lstProductIdError = ";" + orderProductsDTO.getProductId();
             continue;
           }
           Product product = productOptional.get();
+          totalPrice += product.getPrice() * orderProductsDTO.getQuantity();
+          //update quantity if existed in DB
+          orderDetail = existingDetailOptional.get();
+          Long oldQuantity = orderDetail.getQuantity();
+          orderDetail.setQuantity(orderProductsDTO.getQuantity());
+          //Process quantity of product
+          if (product.getStockQuantity() < orderProductsDTO.getQuantity()) {
+            lstProductIdNotEnough = ";" + orderProductsDTO.getProductId();
+            continue;
+          } else {
+            product.setStockQuantity(
+                product.getStockQuantity() - orderProductsDTO.getQuantity() + oldQuantity);
+          }
+        } else {
+          //Create new  Order detail if existed in DB
+          orderDetail = new OrderDetail();
+          Optional<Product> productOptional = productRepository.findById(productId);
+          if (!productOptional.isPresent() || !Constants.STATUS_ACTIVE.equals(
+              productOptional.get().getStatus())) {
+            lstProductIdError = ";" + orderProductsDTO.getProductId();
+            continue;
+          }
+          Product product = productOptional.get();
+          //Process quantity of product
+          if (product.getStockQuantity() < orderProductsDTO.getQuantity()) {
+            lstProductIdNotEnough = ";" + orderProductsDTO.getProductId();
+            continue;
+          } else {
+            product.setStockQuantity(product.getStockQuantity() - orderProductsDTO.getQuantity());
+          }
           orderDetail.setProduct(product);
           orderDetail.setQuantity(orderProductsDTO.getQuantity());
           orderDetail.setUnitPrice(product.getPrice());
           orderDetail.setOrder(existingOrder);
-          orderDetail.setStatus("1");
+          orderDetail.setStatus(Constants.STATUS_ACTIVE);
+          totalPrice += productOptional.get().getPrice() * orderProductsDTO.getQuantity();
         }
 
         orderDetailRepository.save(orderDetail);
       }
 
+      if (!lstProductIdError.isEmpty()) {
+        throw new CommonException("PRODUCT_NOT_FOUND",
+            "ProductId not found in database: " + lstProductIdError, HttpStatus.BAD_REQUEST);
+      }
+
+      if (!lstProductIdNotEnough.isEmpty()) {
+        throw new CommonException("PRODUCT_QUANTITY_NOT_ENOUGH",
+            "ProductId quantity are not enough : " + lstProductIdNotEnough, HttpStatus.BAD_REQUEST);
+      }
+      //recalculate total amount
+      existingOrder.setTotalAmount(totalPrice);
+
+      //remove product not send in request
       existingOrderDetails.removeIf(detail ->
           requestOrder.getLstOrderProduct().stream()
-              .noneMatch(p -> p.getProductId().equals(detail.getProduct().getId())));
+              .anyMatch(p -> p.getProductId().equals(detail.getProduct().getId())));
 
       for (OrderDetail orderDetail : existingOrderDetails) {
-        orderDetail.setStatus("-1");
+        orderDetail.setStatus(Constants.STATUS_INACTIVE);
         orderDetailRepository.save(orderDetail);
-      }
 
-      for (OrderDetail orderDetail : existingOrderDetails) {
-        totalPrice += orderDetail.getUnitPrice() * orderDetail.getQuantity();
+        //Set quantity in product table
+        Product product = orderDetail.getProduct();
+        if (product == null) {
+//          throw new CommonException("CAN_NOT_RETURN_PRODUCT",
+//              "Cannot return product because cannot find productId: " +  , HttpStatus.INTERNAL_SERVER_ERROR);
+        } else {
+          product.setStockQuantity(product.getStockQuantity() + orderDetail.getQuantity());
+        }
       }
-      existingOrder.setTotalAmount(totalPrice);
 
       existingOrder = orderRepository.save(existingOrder);
       return existingOrder;
     } else {
-      throw new CommonException("Order with id ", " not found");
+      throw new CommonException(Utils.Constants.ERROR_NOT_FOUND,
+          "Order with " + orderId + "id not found",
+          HttpStatus.NOT_FOUND);
     }
   }
 
@@ -180,13 +251,7 @@ public class OrderServiceImpl implements OrderService {
   @Override
   public Optional<OrderDetail> getOrderDetailById(Long id) throws Exception {
     BaseResponse response = new BaseResponse();
-    try {
       Optional<OrderDetail> orderDetail = orderDetailRepository.findById(id);
       return orderDetail;
-    } catch (Exception exception) {
-      response.setResponseCode("ERR_GET_ORDER_DETAIL_BY_ID_FAIL");
-      response.setMessage("Cannot retrieve order detail");
-      throw new CommonException(exception, "ERR_GET_ORDER_DETAIL_BY_ID_FAIL", "Cannot retrieve order detail");
-    }
   }
 }

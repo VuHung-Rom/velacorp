@@ -1,6 +1,8 @@
 package com.velacorp.order_management.controller;
 
 import com.velacorp.order_management.common.CommonException;
+import com.velacorp.order_management.common.Utils;
+import com.velacorp.order_management.common.Utils.Constants;
 import com.velacorp.order_management.entity.Product;
 import com.velacorp.order_management.entity.dto.BaseResponse;
 import com.velacorp.order_management.entity.dto.ProductDTO;
@@ -41,17 +43,32 @@ public class ProductController {
    */
   @GetMapping("/all")
   public ResponseEntity<BaseResponse> getAllProducts() {
+    logger.info("BEGIN getAllProducts. Request={}");
     BaseResponse response = new BaseResponse();
     try {
       List<Product> products = productService.getAllProducts();
-      response.setResponseCode("0");
+      response.setResponseCode(Constants.SUCCESS);
       response.setMessage("Success");
       response.setData(products);
       return ResponseEntity.status(HttpStatus.OK).body(response);
+    } catch (CommonException e) {
+      if(e.getHttpCode()!= null){
+        response.setResponseCode(e.getErrorCode());
+        response.setMessage(e.getErrorMessage());
+        return ResponseEntity.status(e.getHttpCode()).body(response);
+      }else {
+        response.setResponseCode(e.getErrorCode());
+        response.setMessage(e.getErrorMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+      }
     } catch (Exception e) {
       logger.error("An error occurred while getting all products", e);
+      response.setResponseCode(Constants.ERROR_UNKNOW);
+      response.setMessage("Unknow error when get product");
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(response);
+    }finally {
+      logger.info("END getAllProducts, response=" + Utils.objectToJson(response));
     }
   }
 
@@ -64,17 +81,38 @@ public class ProductController {
    */
   @GetMapping("/{id}")
   public ResponseEntity<BaseResponse> getProductById(@PathVariable Long id) {
+    logger.info("BEGIN getProductById. Request={"+id+"}");
     BaseResponse response = new BaseResponse();
     try {
       Optional<Product> products = productService.getProductById(id);
-      response.setResponseCode("0");
-      response.setMessage("Success");
-      response.setData(products);
-      return ResponseEntity.status(HttpStatus.OK).body(response);
-    } catch (Exception e) {
+      if (products.isPresent()) {
+        response.setResponseCode(Constants.SUCCESS);
+        response.setMessage("Success");
+        response.setData(products.get());
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+      } else {
+        response.setResponseCode(Constants.ERROR_NOT_FOUND);
+        response.setMessage("Product not found");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+      }
+    } catch (CommonException e) {
+      if(e.getHttpCode()!= null){
+        response.setResponseCode(e.getErrorCode());
+        response.setMessage(e.getErrorMessage());
+        return ResponseEntity.status(e.getHttpCode()).body(response);
+      }else {
+        response.setResponseCode(e.getErrorCode());
+        response.setMessage(e.getErrorMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+      }
+    }  catch (Exception e) {
       logger.error("An error occurred while getting products by id", e);
+      response.setResponseCode(Constants.ERROR_UNKNOW);
+      response.setMessage("Unknown error when get product");
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(response);
+    }finally {
+      logger.info("END getProductById, response=" + Utils.objectToJson(response));
     }
   }
 
@@ -88,21 +126,31 @@ public class ProductController {
   @PostMapping("/create")
   public ResponseEntity<BaseResponse> createProduct(@RequestBody ProductDTO requestProduct) {
     BaseResponse response = new BaseResponse();
+    logger.info("BEGIN createProduct. Request={"+Utils.objectToJson(requestProduct)+"}");
     try {
       Product createdProduct = productService.createProduct(requestProduct);
-      response.setResponseCode("0");
+      response.setResponseCode(Constants.SUCCESS);
       response.setMessage("Product created successfully");
       response.setData(createdProduct);
       return ResponseEntity.status(HttpStatus.CREATED).body(response);
     } catch (CommonException e) {
-      response.setResponseCode(e.getErrorCode());
-      response.setMessage(e.getErrorMessage());
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+      if(e.getHttpCode()!= null){
+        response.setResponseCode(e.getErrorCode());
+        response.setMessage(e.getErrorMessage());
+        return ResponseEntity.status(e.getHttpCode()).body(response);
+      }else {
+        response.setResponseCode(e.getErrorCode());
+        response.setMessage(e.getErrorMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+      }
     } catch (Exception e) {
       logger.error("An error occurred while creating product", e);
-      response.setResponseCode("500");
-      response.setMessage("Internal Server Error");
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+      response.setResponseCode(Constants.ERROR_UNKNOW);
+      response.setMessage("Unknown error when get product");
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(response);
+    }finally {
+      logger.info("END createProduct, response=" + Utils.objectToJson(response));
     }
   }
 
@@ -117,21 +165,31 @@ public class ProductController {
   @PutMapping("/{id}")
   public ResponseEntity<BaseResponse> updateProduct(@PathVariable Long id,
       @RequestBody ProductDTO requestProduct) {
+    logger.info("BEGIN updateProduct.  Request={requestProduct :"+Utils.objectToJson(requestProduct) +";id:" +id+"}");
     BaseResponse response = new BaseResponse();
     try {
       Product updatedProduct = productService.updateProduct(id, requestProduct);
-      response.setResponseCode("0");
+      response.setResponseCode(Constants.SUCCESS);
       response.setMessage("Product updated successfully");
       response.setData(updatedProduct);
       return ResponseEntity.status(HttpStatus.OK).body(response);
-    } catch (CommonException e) {
-      response.setResponseCode(e.getErrorCode());
-      response.setMessage(e.getMessage());
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-    } catch (Exception e) {
-      response.setResponseCode("500");
-      response.setMessage("Internal Server Error");
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }  catch (CommonException e) {
+      if(e.getHttpCode()!= null){
+        response.setResponseCode(e.getErrorCode());
+        response.setMessage(e.getErrorMessage());
+        return ResponseEntity.status(e.getHttpCode()).body(response);
+      }else {
+        response.setResponseCode(e.getErrorCode());
+        response.setMessage(e.getErrorMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+      }
+    }  catch (Exception e) {
+      response.setResponseCode(Constants.ERROR_UNKNOW);
+      response.setMessage("Unknown error when get product");
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(response);
+    }finally {
+      logger.info("END updateProduct, response=" + Utils.objectToJson(response));
     }
   }
 
@@ -142,14 +200,29 @@ public class ProductController {
    * @return
    */
   @DeleteMapping("/{productId}")
-  public ResponseEntity<String> deleteProduct(@PathVariable Long productId) {
+  public ResponseEntity<BaseResponse> deleteProduct(@PathVariable Long productId) {
+    BaseResponse response = new BaseResponse();
+    logger.info("BEGIN deleteProduct.  Request={productId :" + productId + "}");
     try {
       productService.deleteProduct(productId);
-      return new ResponseEntity<>("Product deleted successfully", HttpStatus.OK);
+      response.setResponseCode(Constants.SUCCESS);
+      response.setMessage("Product deleted successfully");
+      return new ResponseEntity<>(response, HttpStatus.OK);
     } catch (CommonException e) {
-      return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+      response.setResponseCode(e.getErrorCode());
+      response.setMessage(e.getErrorMessage());
+      if (e.getHttpCode() != null) {
+        return new ResponseEntity<>(response, e.getHttpCode());
+      } else {
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+      }
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      response.setResponseCode(Constants.ERROR_UNKNOW);
+      response.setMessage("Unknown error when get product");
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(response);
+    } finally {
+      logger.info("END deleteProduct, response=" + Utils.objectToJson(response));
     }
   }
 
@@ -161,6 +234,7 @@ public class ProductController {
    */
   @GetMapping("/search")
   public ResponseEntity<BaseResponse> searchProducts(@RequestParam(required = false) String keyword) {
+    logger.info("BEGIN searchProducts.  Request={keyword:" + keyword + "}");
     BaseResponse response = new BaseResponse();
     try {
       List<Product> products = productService.searchProducts(keyword);
@@ -168,10 +242,21 @@ public class ProductController {
       response.setMessage("Products found successfully");
       response.setData(products);
       return ResponseEntity.status(HttpStatus.OK).body(response);
-    } catch (Exception e) {
-      response.setResponseCode("500");
-      response.setMessage("Internal Server Error");
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }catch (CommonException e) {
+      response.setResponseCode(e.getErrorCode());
+      response.setMessage(e.getErrorMessage());
+      if (e.getHttpCode() != null) {
+        return new ResponseEntity<>(response, e.getHttpCode());
+      } else {
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+      }
+    }  catch (Exception e) {
+      response.setResponseCode(Constants.ERROR_UNKNOW);
+      response.setMessage("Unknown error when get product");
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(response);
+    }finally {
+      logger.info("END searchProducts, response=" + Utils.objectToJson(response));
     }
   }
 }

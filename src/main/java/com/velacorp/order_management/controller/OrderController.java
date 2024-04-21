@@ -1,6 +1,8 @@
 package com.velacorp.order_management.controller;
 
 import com.velacorp.order_management.common.CommonException;
+import com.velacorp.order_management.common.Utils;
+import com.velacorp.order_management.common.Utils.Constants;
 import com.velacorp.order_management.entity.OrderDetail;
 import com.velacorp.order_management.entity.Orders;
 import com.velacorp.order_management.entity.dto.BaseResponse;
@@ -26,6 +28,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/orders")
 public class OrderController {
+
+
   @Autowired
   private OrderService orderService;
 
@@ -40,16 +44,31 @@ public class OrderController {
   @GetMapping("/all")
   public ResponseEntity<BaseResponse> getAllOrders() {
     BaseResponse response = new BaseResponse();
+    logger.info("BEGIN getAllOrders. Request={}");
     try {
       List<Orders> orders = orderService.getAllOrders();
       response.setResponseCode("0");
       response.setMessage("Success");
       response.setData(orders);
       return ResponseEntity.status(HttpStatus.OK).body(response);
+    } catch (CommonException ex) {
+      if (ex.getHttpCode() != null) {
+        response.setResponseCode(ex.getErrorCode());
+        response.setMessage(ex.getErrorMessage());
+        return ResponseEntity.status(ex.getHttpCode()).body(response);
+      } else {
+        response.setResponseCode(ex.getErrorCode());
+        response.setMessage(ex.getErrorMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+      }
     } catch (Exception e) {
       logger.error("An error occurred while getting all order", e);
+      response.setResponseCode("ERR_GET_ALL_ORDER_FAIL");
+      response.setMessage("Cannot retrieve order");
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(response);
+    } finally {
+      logger.info("END getAllOrders, response=" + Utils.objectToJson(response));
     }
   }
 
@@ -66,6 +85,10 @@ public class OrderController {
       @RequestParam(required = false) String keyword,
       @RequestParam(required = false) Integer pageSize,
       @RequestParam(required = false) Integer pageNumber) {
+
+    logger.info("BEGIN createOrder, request={id:" + id, ";keyword:" + keyword
+        + ";pageSize" + pageSize + ";pageNumber=" + pageNumber + "}");
+
     if (pageSize == null ) {
       pageSize = 20;
     }
@@ -80,14 +103,27 @@ public class OrderController {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
       }
       OrdersResponse ordersResponse = orderService.searchOrders(id, keyword, pageSize, pageNumber);
-      response.setResponseCode("0");
+      response.setResponseCode(Constants.SUCCESS);
       response.setMessage("Orders retrieved successfully");
       response.setData(ordersResponse);
       return ResponseEntity.status(HttpStatus.OK).body(response);
+    } catch (CommonException ex) {
+      if (ex.getHttpCode() != null) {
+        response.setResponseCode(ex.getErrorCode());
+        response.setMessage(ex.getErrorMessage());
+        return ResponseEntity.status(ex.getHttpCode()).body(response);
+      } else {
+        response.setResponseCode(ex.getErrorCode());
+        response.setMessage(ex.getErrorMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+      }
     } catch (Exception e) {
-      response.setResponseCode("500");
+      logger.error("An error occurred while updateOrder", e);
+      response.setResponseCode(Constants.ERROR_UNKNOW);
       response.setMessage("Internal Server Error");
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    } finally {
+      logger.info("END searchOrders, response=" + Utils.objectToJson(response));
     }
   }
 
@@ -103,19 +139,30 @@ public class OrderController {
   public ResponseEntity<BaseResponse> createOrder(@RequestBody OrderDTO orderDTO) {
     BaseResponse response = new BaseResponse();
     try {
+      logger.info("BEGIN createOrder, request=" + Utils.objectToJson(orderDTO));
+
       Orders createdOrder = orderService.createOrders(orderDTO);
-      response.setResponseCode("0");
+      response.setResponseCode(Constants.SUCCESS);
       response.setMessage("Order created successfully");
       response.setData(createdOrder);
       return ResponseEntity.status(HttpStatus.CREATED).body(response);
     } catch (CommonException ex) {
-      response.setResponseCode("400");
-      response.setMessage(ex.getMessage());
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+      if (ex.getHttpCode() != null) {
+        response.setResponseCode(ex.getErrorCode());
+        response.setMessage(ex.getErrorMessage());
+        return ResponseEntity.status(ex.getHttpCode()).body(response);
+      } else {
+        response.setResponseCode(ex.getErrorCode());
+        response.setMessage(ex.getErrorMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+      }
     } catch (Exception ex) {
-      response.setResponseCode("500");
+      logger.error("An error occurred while updateOrder", ex);
+      response.setResponseCode(Constants.ERROR_CREATE_ORDER);
       response.setMessage("Internal Server Error");
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    } finally {
+      logger.info("END createOrder, response=" + Utils.objectToJson(response));
     }
   }
 
@@ -132,19 +179,31 @@ public class OrderController {
       @RequestBody OrderDTO requestOrder) {
     BaseResponse response = new BaseResponse();
     try {
+      logger.info(
+          "BEGIN updateOrder, requestOrder:" + Utils.objectToJson(requestOrder) + ";orderId:"
+              + orderId);
       Orders updatedOrder = orderService.updateOrder(orderId, requestOrder);
-      response.setResponseCode("0");
+      response.setResponseCode(Constants.SUCCESS);
       response.setMessage("Order updated successfully");
       response.setData(updatedOrder);
       return ResponseEntity.status(HttpStatus.OK).body(response);
     } catch (CommonException e) {
-      response.setResponseCode("404");
-      response.setMessage(e.getMessage());
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+      if (e.getHttpCode() != null) {
+        response.setResponseCode(e.getErrorCode());
+        response.setMessage(e.getErrorMessage());
+        return ResponseEntity.status(e.getHttpCode()).body(response);
+      } else {
+        response.setResponseCode(e.getErrorCode());
+        response.setMessage(e.getErrorMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+      }
     } catch (Exception e) {
-      response.setResponseCode("500");
+      logger.error("An error occurred while updateOrder", e);
+      response.setResponseCode("UPDATE_ERROR");
       response.setMessage("Internal Server Error");
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    } finally {
+      logger.info("END updateOrder, response=" + Utils.objectToJson(response));
     }
   }
 
@@ -159,14 +218,33 @@ public class OrderController {
   public ResponseEntity<BaseResponse> getOrderDetailById(@PathVariable Long id) {
     BaseResponse response = new BaseResponse();
     try {
+      logger.info("BEGIN getOrderDetailById, request={id:" + id + "}");
       Optional<OrderDetail> orderDetail = orderService.getOrderDetailById(id);
-      response.setResponseCode("0");
-      response.setMessage("Success");
-      response.setData(orderDetail);
-      return ResponseEntity.status(HttpStatus.OK).body(response);
+      if (orderDetail.isPresent()) {
+        response.setResponseCode(Constants.SUCCESS);
+        response.setMessage("Success");
+        response.setData(orderDetail.get());
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+      } else {
+        response.setResponseCode(Constants.ERROR_NOT_FOUND);
+        response.setMessage("Cannot found order");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+      }
+    } catch (CommonException ex) {
+      if (ex.getHttpCode() != null) {
+        response.setResponseCode(ex.getErrorCode());
+        response.setMessage(ex.getErrorMessage());
+        return ResponseEntity.status(ex.getHttpCode()).body(response);
+      } else {
+        response.setResponseCode(ex.getErrorCode());
+        response.setMessage(ex.getErrorMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+      }
     } catch (Exception e) {
       logger.error("An error occurred while getting order detail by id", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    } finally {
+      logger.info("END getOrderDetailById, response=" + Utils.objectToJson(response));
     }
   }
 }
