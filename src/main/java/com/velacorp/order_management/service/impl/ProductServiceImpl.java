@@ -5,6 +5,7 @@ import com.velacorp.order_management.common.Utils.Constants;
 import com.velacorp.order_management.entity.Product;
 import com.velacorp.order_management.entity.dto.BaseResponse;
 import com.velacorp.order_management.entity.dto.ProductDTO;
+import com.velacorp.order_management.entity.dto.ProductResponse;
 import com.velacorp.order_management.repository.ProductRepository;
 import com.velacorp.order_management.service.ProductService;
 import java.util.List;
@@ -32,11 +33,20 @@ public class ProductServiceImpl implements ProductService {
   }
 
   @Override
-  public List<Product> searchProducts(String keyword) {
-      if (keyword == null || keyword.isBlank()) {
-        return productRepository.findAll();
-      }
-      return productRepository.findByProductNameContainingOrDescriptionContaining(keyword, keyword);
+  public ProductResponse searchProducts(String keyword, int pageSize, int pageNumber) {
+    int offset = pageNumber * pageSize;
+    Long totalCount;
+    List<Product> products;
+
+    if (keyword == null || keyword.isBlank()) {
+      products = productRepository.findAll();
+      totalCount = productRepository.count();
+    } else {
+      products = productRepository.searchProducts(keyword, pageSize, offset);
+      totalCount = productRepository.countSearchResults(keyword);
+    }
+
+    return new ProductResponse(products, totalCount);
   }
 
 

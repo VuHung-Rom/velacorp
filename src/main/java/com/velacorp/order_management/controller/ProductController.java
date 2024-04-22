@@ -6,6 +6,7 @@ import com.velacorp.order_management.common.Utils.Constants;
 import com.velacorp.order_management.entity.Product;
 import com.velacorp.order_management.entity.dto.BaseResponse;
 import com.velacorp.order_management.entity.dto.ProductDTO;
+import com.velacorp.order_management.entity.dto.ProductResponse;
 import com.velacorp.order_management.service.ProductService;
 import java.util.List;
 import java.util.Optional;
@@ -233,11 +234,21 @@ public class ProductController {
    * @return
    */
   @GetMapping("/search")
-  public ResponseEntity<BaseResponse> searchProducts(@RequestParam(required = false) String keyword) {
-    logger.info("BEGIN searchProducts.  Request={keyword:" + keyword + "}");
+  public ResponseEntity<BaseResponse> searchProducts(@RequestParam(required = false) String keyword,
+    @RequestParam(required = false) Integer pageSize,
+      @RequestParam(required = false) Integer pageNumber) {
+    logger.info("BEGIN searchProducts, request={", ";keyword:" + keyword
+        + ";pageSize" + pageSize + ";pageNumber=" + pageNumber + "}");
+
+    if (pageSize == null ) {
+      pageSize = 20;
+    }
+    if (pageNumber == null ) {
+      pageNumber = 0;
+    }
     BaseResponse response = new BaseResponse();
     try {
-      List<Product> products = productService.searchProducts(keyword);
+      ProductResponse products = productService.searchProducts(keyword,  pageSize,  pageNumber);
       response.setResponseCode("0");
       response.setMessage("Products found successfully");
       response.setData(products);
